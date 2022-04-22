@@ -1,9 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 namespace PerfectCode\PropertyAccessor\Model;
 
+use Closure;
+use Generator;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\PropertyAccess\PropertyPathInterface;
 
 /**
  * Class ObjectPropertyAccessor
@@ -12,30 +16,43 @@ class ObjectPropertyAccessor implements PropertyAccessorInterface
 {
     /**
      * {@inheritdoc}
+     * @return void
+     * @throws PropertyAccessorException
      */
-    public function setValue(&$object, $property, $value)
-    {
-        if ($this->propertyExists($object, $property)) {
-            return $this->propertyAccess(
-                $object,
-                $property,
-                function ($property) use ($value) {
-                    $this->{$property} = $value;
+    public function setValue(
+        object|array &$objectOrArray,
+        string|PropertyPathInterface $propertyPath,
+        mixed $value
+    ): void {
+        if (is_array($objectOrArray) || $propertyPath instanceof PropertyPathInterface) {
+            throw new PropertyAccessorException (__('This functionality does not support.'));
+        }
+        if ($this->propertyExists($objectOrArray, $propertyPath)) {
+            $this->propertyAccess(
+                $objectOrArray,
+                $propertyPath,
+                function ($propertyPath) use ($value) {
+                    $this->{$propertyPath} = $value;
                 }
             );
+            return;
         }
 
-        $object->{$property} = $value;
+        $objectOrArray->{$propertyPath} = $value;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getValue($object, $property)
+    public function getValue(object|array $objectOrArray, string|PropertyPathInterface $propertyPath): mixed
     {
+        if (is_array($objectOrArray) || $propertyPath instanceof PropertyPathInterface) {
+            throw new PropertyAccessorException (__('This functionality does not support.'));
+        }
+
         return $this->propertyAccess(
-            $object,
-            $property,
+            $objectOrArray,
+            $propertyPath,
             function ($property) {
                 return $this->{$property};
             }
@@ -44,28 +61,35 @@ class ObjectPropertyAccessor implements PropertyAccessorInterface
 
     /**
      * {@inheritdoc}
+     * @throws PropertyAccessorException
      */
-    public function isWritable($object, $property)
+    public function isWritable(object|array $objectOrArray, string|PropertyPathInterface $propertyPath): bool
     {
-        return $this->propertyExists($object, $property);
+        if (is_array($objectOrArray) || $propertyPath instanceof PropertyPathInterface) {
+            throw new PropertyAccessorException (__('This functionality does not support.'));
+        }
+        return $this->propertyExists($objectOrArray, $propertyPath);
     }
 
     /**
      * {@inheritdoc}
+     * @throws PropertyAccessorException
      */
-    public function isReadable($object, $property)
+    public function isReadable(object|array $objectOrArray, string|PropertyPathInterface $propertyPath): bool
     {
-        return $this->propertyExists($object, $property);
+        if (is_array($objectOrArray) || $propertyPath instanceof PropertyPathInterface) {
+            throw new PropertyAccessorException (__('This functionality does not support.'));
+        }
+        return $this->propertyExists($objectOrArray, $propertyPath);
     }
 
     /**
      * @param object $object
      * @param string $property
      * @param callable $command
-     *
      * @return mixed
      */
-    protected function propertyAccess($object, $property, callable $command)
+    protected function propertyAccess(object $object, string $property, callable $command): mixed
     {
         $classes = $this->getClasses($object);
 
@@ -74,21 +98,22 @@ class ObjectPropertyAccessor implements PropertyAccessorInterface
                 continue;
             }
 
-            return \Closure::bind(
+            return Closure::bind(
                 $command,
                 $object,
                 $class
-            )($property);
+            )(
+                $property
+            );
         }
     }
 
     /**
      * @param object $object
      * @param string $property
-     *
      * @return bool
      */
-    protected function propertyExists($object, $property)
+    protected function propertyExists(object $object, string $property): bool
     {
         $classes = $this->getClasses($object);
 
@@ -105,10 +130,9 @@ class ObjectPropertyAccessor implements PropertyAccessorInterface
 
     /**
      * @param object $object
-     *
-     * @return \Generator
+     * @return Generator
      */
-    protected function getClasses($object)
+    protected function getClasses(object $object): Generator
     {
         yield get_class($object) => get_class($object);
         yield from class_parents($object);

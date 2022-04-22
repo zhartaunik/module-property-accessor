@@ -2,10 +2,14 @@
     "name": "perfect-code/module-property-accessor",
     "description": "Magento2 extension which allows you to access protected property of the class.",
     "type": "magento2-module",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "license": [
         "GPL-3.0"
     ],
+    "require": {
+        "php": "^8.1",
+        "symfony/property-access": "^6"
+    },
     "autoload": {
         "files": [
             "registration.php"
